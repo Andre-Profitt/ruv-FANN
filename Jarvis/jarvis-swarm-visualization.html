@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS + ruv-swarm Coordination Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        h1 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .metric {
+            margin: 10px 0;
+            padding: 5px;
+            background: rgba(0, 255, 0, 0.1);
+            border-radius: 5px;
+        }
+        
+        .agent-list {
+            margin-top: 20px;
+        }
+        
+        .agent {
+            margin: 5px 0;
+            padding: 8px;
+            border-left: 3px solid #00ff00;
+            background: rgba(0, 255, 0, 0.05);
+        }
+        
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 30px;
+            border: 1px solid #00ff00;
+            border-radius: 20px;
+            font-size: 18px;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="info-panel">
+        <h1 class="pulse">JARVIS + ruv-swarm</h1>
+        
+        <div class="metric">
+            <strong>Swarm Topology:</strong> Hierarchical
+        </div>
+        <div class="metric">
+            <strong>Active Agents:</strong> <span id="agent-count">0</span>
+        </div>
+        <div class="metric">
+            <strong>Tasks Processed:</strong> <span id="task-count">0</span>
+        </div>
+        <div class="metric">
+            <strong>Response Time:</strong> <span id="response-time">0ms</span>
+        </div>
+        
+        <div class="agent-list" id="agent-list">
+            <h3>Active Agents:</h3>
+        </div>
+    </div>
+    
+    <div class="status" id="status">
+        Initializing JARVIS Swarm Intelligence...
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Agent class
+        class Agent {
+            constructor(id, type, name, x, y) {
+                this.id = id;
+                this.type = type;
+                this.name = name;
+                this.x = x;
+                this.y = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.radius = 30;
+                this.color = this.getColorByType(type);
+                this.connections = [];
+                this.active = false;
+                this.taskProgress = 0;
+            }
+            
+            getColorByType(type) {
+                const colors = {
+                    'coordinator': '#00ff00',
+                    'researcher': '#00ffff',
+                    'analyst': '#ff00ff',
+                    'predictor': '#ffff00',
+                    'executor': '#ff0000',
+                    'learner': '#0080ff',
+                    'memory': '#ff8000',
+                    'communicator': '#00ff80'
+                };
+                return colors[type] || '#ffffff';
+            }
+            
+            update() {
+                // Smooth movement
+                this.x += (this.targetX - this.x) * 0.1;
+                this.y += (this.targetY - this.y) * 0.1;
+                
+                // Random movement for activity
+                if (this.active) {
+                    this.targetX = this.x + (Math.random() - 0.5) * 50;
+                    this.targetY = this.y + (Math.random() - 0.5) * 50;
+                    
+                    // Keep within bounds
+                    this.targetX = Math.max(50, Math.min(canvas.width - 50, this.targetX));
+                    this.targetY = Math.max(50, Math.min(canvas.height - 50, this.targetY));
+                }
+                
+                // Update task progress
+                if (this.active && this.taskProgress < 100) {
+                    this.taskProgress += Math.random() * 5;
+                }
+            }
+            
+            draw() {
+                // Draw connections first
+                this.connections.forEach(target => {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(target.x, target.y);
+                    ctx.strokeStyle = `rgba(0, 255, 0, ${this.active ? 0.5 : 0.1})`;
+                    ctx.lineWidth = this.active ? 2 : 1;
+                    ctx.stroke();
+                    
+                    // Draw data packets
+                    if (this.active && Math.random() < 0.1) {
+                        const t = Date.now() * 0.001 % 1;
+                        const px = this.x + (target.x - this.x) * t;
+                        const py = this.y + (target.y - this.y) * t;
+                        
+                        ctx.beginPath();
+                        ctx.arc(px, py, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = '#00ff00';
+                        ctx.fill();
+                    }
+                });
+                
+                // Draw agent
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.active ? this.color : `${this.color}33`;
+                ctx.fill();
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw progress ring if active
+                if (this.active && this.taskProgress > 0) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 5, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * this.taskProgress / 100));
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+                
+                // Draw label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, this.x, this.y + this.radius + 20);
+            }
+        }
+        
+        // Create swarm
+        const agents = [];
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        
+        // Create coordinator at center
+        const coordinator = new Agent('coord', 'coordinator', 'Coordinator', centerX, centerY);
+        agents.push(coordinator);
+        
+        // Create other agents in a circle
+        const agentTypes = [
+            { type: 'researcher', name: 'Researcher' },
+            { type: 'analyst', name: 'Analyzer' },
+            { type: 'predictor', name: 'Predictor' },
+            { type: 'executor', name: 'Executor' },
+            { type: 'learner', name: 'Learner' },
+            { type: 'memory', name: 'Memory' },
+            { type: 'communicator', name: 'Communicator' }
+        ];
+        
+        agentTypes.forEach((agentInfo, i) => {
+            const angle = (i / agentTypes.length) * Math.PI * 2;
+            const radius = 200;
+            const x = centerX + Math.cos(angle) * radius;
+            const y = centerY + Math.sin(angle) * radius;
+            
+            const agent = new Agent(`agent${i}`, agentInfo.type, agentInfo.name, x, y);
+            agents.push(agent);
+            
+            // Connect to coordinator
+            agent.connections.push(coordinator);
+            coordinator.connections.push(agent);
+        });
+        
+        // Connect some agents to each other
+        for (let i = 1; i < agents.length; i++) {
+            const next = i === agents.length - 1 ? 1 : i + 1;
+            agents[i].connections.push(agents[next]);
+        }
+        
+        // Animation state
+        let frame = 0;
+        let activeCount = 0;
+        let taskCount = 0;
+        let responseTime = 0;
+        
+        // Simulate swarm activation
+        function activateSwarm() {
+            setTimeout(() => {
+                document.getElementById('status').textContent = 'Swarm Initialized - Processing User Request...';
+                
+                // Activate agents sequentially
+                agents.forEach((agent, i) => {
+                    setTimeout(() => {
+                        agent.active = true;
+                        activeCount++;
+                        updateUI();
+                        
+                        if (i === agents.length - 1) {
+                            setTimeout(() => {
+                                document.getElementById('status').textContent = 'Task Complete - Response Generated!';
+                                responseTime = 127;
+                                updateUI();
+                            }, 3000);
+                        }
+                    }, i * 500);
+                });
+            }, 2000);
+        }
+        
+        // Update UI
+        function updateUI() {
+            document.getElementById('agent-count').textContent = activeCount;
+            document.getElementById('task-count').textContent = taskCount;
+            document.getElementById('response-time').textContent = responseTime + 'ms';
+            
+            // Update agent list
+            const agentList = document.getElementById('agent-list');
+            agentList.innerHTML = '<h3>Active Agents:</h3>';
+            
+            agents.filter(a => a.active).forEach(agent => {
+                const div = document.createElement('div');
+                div.className = 'agent';
+                div.innerHTML = `<strong>${agent.name}</strong> - ${Math.round(agent.taskProgress)}%`;
+                agentList.appendChild(div);
+            });
+        }
+        
+        // Animation loop
+        function animate() {
+            // Clear canvas
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw agents
+            agents.forEach(agent => {
+                agent.update();
+                agent.draw();
+            });
+            
+            // Draw central nexus effect
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 50 + Math.sin(frame * 0.02) * 10, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Update task count
+            if (frame % 60 === 0 && activeCount > 0) {
+                taskCount++;
+                updateUI();
+            }
+            
+            frame++;
+            requestAnimationFrame(animate);
+        }
+        
+        // Start animation
+        animate();
+        activateSwarm();
+    </script>
+</body>
+</html>
